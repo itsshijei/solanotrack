@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "440255603724",
+    "firebase_url": "https://solanotrackfb-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "solanotrackfb",
+    "storage_bucket": "solanotrackfb.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:440255603724:android:4f8dba01a441d684beba29",
+        "android_client_info": {
+          "package_name": "com.example.solanotrack"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDQilvVqqmlb_AMDtNpURJlD4JSdn1rcFM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
