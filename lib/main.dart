@@ -71,31 +71,12 @@ extension TreatmentGroupExt on TreatmentGroup {
     }
   }
 
-  // Thesis results
-  String get day5Rate {
-    switch (this) {
-      case TreatmentGroup.control: return '~55%';
-      case TreatmentGroup.magnetOnly: return '~68%';
-      case TreatmentGroup.uvOnly: return '~72%';
-      case TreatmentGroup.combined: return '~80%';
-    }
-  }
-
   String get day10Rate {
     switch (this) {
       case TreatmentGroup.control: return '70%';
       case TreatmentGroup.magnetOnly: return '83%';
       case TreatmentGroup.uvOnly: return '87%';
       case TreatmentGroup.combined: return '93%';
-    }
-  }
-
-  String get rootDay10 {
-    switch (this) {
-      case TreatmentGroup.control: return '22.5 mm';
-      case TreatmentGroup.magnetOnly: return '~28 mm';
-      case TreatmentGroup.uvOnly: return '~30 mm';
-      case TreatmentGroup.combined: return '34.7 mm';
     }
   }
 
@@ -186,9 +167,8 @@ class _MainShellState extends State<MainShell> {
     });
   }
 
-  String _fmt(int s) {
-    return '${(s ~/ 60).toString().padLeft(2, '0')}:${(s % 60).toString().padLeft(2, '0')}';
-  }
+  String _fmt(int s) =>
+      '${(s ~/ 60).toString().padLeft(2, '0')}:${(s % 60).toString().padLeft(2, '0')}';
 
   void _startUV() {
     _controlRef.update({"UV": true});
@@ -256,6 +236,13 @@ class _MainShellState extends State<MainShell> {
         onGroupChanged: (g) => setState(() => selectedGroup = g),
         formatCountdown: _fmt,
       ),
+      AnalyticsPage(history: _history),
+      GrowthPredictionPage(
+        soilMoisture: soilMoisture,
+        humidity: humidity,
+        tempC: tempC,
+        selectedGroup: selectedGroup,
+      ),
       HistoryPage(history: _history),
       const SettingsPage(),
     ];
@@ -268,16 +255,20 @@ class _MainShellState extends State<MainShell> {
           boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 20, offset: const Offset(0, -4))],
         ),
         child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _NavItem(icon: Icons.dashboard_rounded, label: "Home", index: 0, current: _currentIndex, onTap: (i) => setState(() => _currentIndex = i)),
-                _NavItem(icon: Icons.rocket_launch_rounded, label: "To Deploy", index: 1, current: _currentIndex, onTap: (i) => setState(() => _currentIndex = i)),
-                _NavItem(icon: Icons.history_rounded, label: "History", index: 2, current: _currentIndex, onTap: (i) => setState(() => _currentIndex = i)),
-                _NavItem(icon: Icons.settings_rounded, label: "Settings", index: 3, current: _currentIndex, onTap: (i) => setState(() => _currentIndex = i)),
-              ],
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+              child: Row(
+                children: [
+                  _NavItem(icon: Icons.dashboard_rounded, label: "Home", index: 0, current: _currentIndex, onTap: (i) => setState(() => _currentIndex = i)),
+                  _NavItem(icon: Icons.rocket_launch_rounded, label: "Deploy", index: 1, current: _currentIndex, onTap: (i) => setState(() => _currentIndex = i)),
+                  _NavItem(icon: Icons.bar_chart_rounded, label: "Analytics", index: 2, current: _currentIndex, onTap: (i) => setState(() => _currentIndex = i)),
+                  _NavItem(icon: Icons.trending_up_rounded, label: "Predict", index: 3, current: _currentIndex, onTap: (i) => setState(() => _currentIndex = i)),
+                  _NavItem(icon: Icons.history_rounded, label: "History", index: 4, current: _currentIndex, onTap: (i) => setState(() => _currentIndex = i)),
+                  _NavItem(icon: Icons.settings_rounded, label: "Settings", index: 5, current: _currentIndex, onTap: (i) => setState(() => _currentIndex = i)),
+                ],
+              ),
             ),
           ),
         ),
@@ -296,19 +287,17 @@ class _NavItem extends StatelessWidget {
       onTap: () => onTap(index),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
           color: isActive ? const Color(0xFF2E7D32).withOpacity(0.12) : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(10),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: isActive ? const Color(0xFF2E7D32) : Colors.grey.shade400, size: 24),
-            const SizedBox(height: 2),
-            Text(label, style: TextStyle(fontSize: 11, fontWeight: isActive ? FontWeight.w700 : FontWeight.w400, color: isActive ? const Color(0xFF2E7D32) : Colors.grey.shade400)),
-          ],
-        ),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Icon(icon, color: isActive ? const Color(0xFF2E7D32) : Colors.grey.shade400, size: 22),
+          const SizedBox(height: 2),
+          Text(label, style: TextStyle(fontSize: 10, fontWeight: isActive ? FontWeight.w700 : FontWeight.w400,
+              color: isActive ? const Color(0xFF2E7D32) : Colors.grey.shade400)),
+        ]),
       ),
     );
   }
@@ -328,60 +317,55 @@ class DashboardPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F9F5),
       body: SafeArea(
-        child: CustomScrollView(
-          slivers: [
-            SliverToBoxAdapter(child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text("SOLANOTRACK", style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: const Color(0xFF2E7D32), letterSpacing: 2)),
-                    Text("Magneto-UV System", style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Colors.grey.shade800)),
-                  ]),
-                  Row(children: [
-                    _StatusChip(label: "UV", active: uvActive),
-                    const SizedBox(width: 8),
-                    _StatusChip(label: "MAG", active: magnetActive),
-                    const SizedBox(width: 12),
-                    Icon(Icons.notifications_outlined, color: Colors.grey.shade600, size: 26),
-                  ]),
-                ],
-              ),
-            )),
-            SliverToBoxAdapter(child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-              child: Row(children: [
-                Text("Dashboard  ", style: TextStyle(fontSize: 14, color: Colors.grey.shade500)),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                  decoration: BoxDecoration(color: selectedGroup.color.withOpacity(0.12), borderRadius: BorderRadius.circular(20)),
-                  child: Text(selectedGroup.label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: selectedGroup.color)),
-                ),
+        child: CustomScrollView(slivers: [
+          SliverToBoxAdapter(child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+            child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text("SOLANOTRACK", style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: const Color(0xFF2E7D32), letterSpacing: 2)),
+                Text("Magneto-UV System", style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Colors.grey.shade800)),
               ]),
-            )),
-            SliverPadding(
-              padding: const EdgeInsets.all(20),
-              sliver: SliverGrid(
-                delegate: SliverChildListDelegate([
-                  GaugeCard(label: "Temperature", value: tempC, unit: "°C", min: 0, max: 50, color: const Color(0xFFE65100), optimalMin: SolanoRanges.tempMin, optimalMax: SolanoRanges.tempMax),
-                  GaugeCard(label: "Humidity", value: humidity, unit: "%", min: 0, max: 100, color: const Color(0xFF1565C0), optimalMin: SolanoRanges.humidMin, optimalMax: SolanoRanges.humidMax),
-                  GaugeCard(label: "Water Tank", value: waterLevel, unit: "%", min: 0, max: 100, color: const Color(0xFF00838F), optimalMin: SolanoRanges.waterLow, optimalMax: 100, lowWarning: waterLevel < SolanoRanges.waterLow),
-                  GaugeCard(label: "Soil Moisture", value: soilMoisture.toDouble(), unit: "%", min: 0, max: 100, color: const Color(0xFF558B2F), optimalMin: SolanoRanges.soilMin.toDouble(), optimalMax: SolanoRanges.soilMax.toDouble()),
-                ]),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, crossAxisSpacing: 14, mainAxisSpacing: 14, childAspectRatio: 0.92),
+              Row(children: [
+                _StatusChip(label: "UV", active: uvActive),
+                const SizedBox(width: 8),
+                _StatusChip(label: "MAG", active: magnetActive),
+                const SizedBox(width: 12),
+                Icon(Icons.notifications_outlined, color: Colors.grey.shade600, size: 26),
+              ]),
+            ]),
+          )),
+          SliverToBoxAdapter(child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+            child: Row(children: [
+              Text("Dashboard  ", style: TextStyle(fontSize: 14, color: Colors.grey.shade500)),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                decoration: BoxDecoration(color: selectedGroup.color.withOpacity(0.12), borderRadius: BorderRadius.circular(20)),
+                child: Text(selectedGroup.label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: selectedGroup.color)),
               ),
+            ]),
+          )),
+          SliverPadding(
+            padding: const EdgeInsets.all(20),
+            sliver: SliverGrid(
+              delegate: SliverChildListDelegate([
+                GaugeCard(label: "Temperature", value: tempC, unit: "°C", min: 0, max: 50, color: const Color(0xFFE65100), optimalMin: SolanoRanges.tempMin, optimalMax: SolanoRanges.tempMax),
+                GaugeCard(label: "Humidity", value: humidity, unit: "%", min: 0, max: 100, color: const Color(0xFF1565C0), optimalMin: SolanoRanges.humidMin, optimalMax: SolanoRanges.humidMax),
+                GaugeCard(label: "Water Tank", value: waterLevel, unit: "%", min: 0, max: 100, color: const Color(0xFF00838F), optimalMin: SolanoRanges.waterLow, optimalMax: 100, lowWarning: waterLevel < SolanoRanges.waterLow),
+                GaugeCard(label: "Soil Moisture", value: soilMoisture.toDouble(), unit: "%", min: 0, max: 100, color: const Color(0xFF558B2F), optimalMin: SolanoRanges.soilMin.toDouble(), optimalMax: SolanoRanges.soilMax.toDouble()),
+              ]),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, crossAxisSpacing: 14, mainAxisSpacing: 14, childAspectRatio: 0.92),
             ),
-            SliverToBoxAdapter(child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-              child: _SystemStatusCard(tempC: tempC, humidity: humidity, soilMoisture: soilMoisture, waterLevel: waterLevel),
-            )),
-            SliverToBoxAdapter(child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-              child: _ExpectedResultsCard(group: selectedGroup),
-            )),
-          ],
-        ),
+          ),
+          SliverToBoxAdapter(child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+            child: _SystemStatusCard(tempC: tempC, humidity: humidity, soilMoisture: soilMoisture, waterLevel: waterLevel),
+          )),
+          SliverToBoxAdapter(child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+            child: _ExpectedResultsCard(group: selectedGroup),
+          )),
+        ]),
       ),
     );
   }
@@ -394,10 +378,7 @@ class _StatusChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: active ? const Color(0xFF2E7D32) : Colors.grey.shade200,
-        borderRadius: BorderRadius.circular(20),
-      ),
+      decoration: BoxDecoration(color: active ? const Color(0xFF2E7D32) : Colors.grey.shade200, borderRadius: BorderRadius.circular(20)),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         if (active) ...[Container(width: 6, height: 6, decoration: const BoxDecoration(color: Colors.greenAccent, shape: BoxShape.circle)), const SizedBox(width: 4)],
         Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: active ? Colors.white : Colors.grey.shade500, letterSpacing: 1)),
@@ -428,8 +409,7 @@ class _SystemStatusCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
+        color: Colors.white, borderRadius: BorderRadius.circular(18),
         border: Border.all(color: hasWarn ? const Color(0xFFE65100).withOpacity(0.3) : const Color(0xFF2E7D32).withOpacity(0.15)),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -455,14 +435,12 @@ class _SystemStatusCard extends StatelessWidget {
 class _ExpectedResultsCard extends StatelessWidget {
   final TreatmentGroup group;
   const _ExpectedResultsCard({required this.group});
-
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: group.color.withOpacity(0.06),
-        borderRadius: BorderRadius.circular(18),
+        color: group.color.withOpacity(0.06), borderRadius: BorderRadius.circular(18),
         border: Border.all(color: group.color.withOpacity(0.2)),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -472,9 +450,7 @@ class _ExpectedResultsCard extends StatelessWidget {
           Text("Expected Results — ${group.label}", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: group.color)),
         ]),
         const SizedBox(height: 12),
-        _ResultRow("Day 5 Germination", group.day5Rate, group.color),
         _ResultRow("Day 10 Germination", group.day10Rate, group.color),
-        _ResultRow("Root Length (Day 10)", group.rootDay10, group.color),
         _ResultRow("Shoot Height (Day 10)", group.shootDay10, group.color),
       ]),
     );
@@ -512,12 +488,10 @@ class GaugeCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final statusColor = lowWarning ? const Color(0xFFD32F2F) : isOptimal ? const Color(0xFF2E7D32) : Colors.orange.shade700;
     final statusLabel = lowWarning ? "⚠ Low" : isOptimal ? "✓ Optimal" : "↕ Adjust";
-
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        color: Colors.white, borderRadius: BorderRadius.circular(20),
         border: Border.all(color: statusColor.withOpacity(0.25), width: 1.2),
         boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2))],
       ),
@@ -556,18 +530,14 @@ class GaugePainter extends CustomPainter {
     final radius = size.width * 0.42;
     const startAngle = math.pi * 0.75;
     const sweepAngle = math.pi * 1.5;
-
     canvas.drawArc(Rect.fromCircle(center: center, radius: radius), startAngle, sweepAngle, false,
         Paint()..color = Colors.grey.shade100..style = PaintingStyle.stroke..strokeWidth = 10..strokeCap = StrokeCap.round);
-
     final progress = ((value - min) / (max - min)).clamp(0.0, 1.0);
     final gaugeColor = progress < 0.5
         ? Color.lerp(const Color(0xFF558B2F), const Color(0xFFFFA000), progress * 2)!
         : Color.lerp(const Color(0xFFFFA000), const Color(0xFFD32F2F), (progress - 0.5) * 2)!;
-
     canvas.drawArc(Rect.fromCircle(center: center, radius: radius), startAngle, sweepAngle * progress, false,
         Paint()..color = gaugeColor..style = PaintingStyle.stroke..strokeWidth = 10..strokeCap = StrokeCap.round);
-
     final tp = TextPainter(textDirection: TextDirection.ltr);
     void drawLabel(String text, Offset pos) {
       tp.text = TextSpan(text: text, style: TextStyle(fontSize: 9, color: Colors.grey.shade500, fontWeight: FontWeight.w600));
@@ -618,7 +588,6 @@ class DeployPage extends StatelessWidget {
             const SizedBox(height: 4),
             Text("Select treatment group and start timed cycles", style: TextStyle(fontSize: 13, color: Colors.grey.shade500)),
             const SizedBox(height: 20),
-
             Text("Treatment Group", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.grey.shade600)),
             const SizedBox(height: 10),
             Row(
@@ -648,7 +617,6 @@ class DeployPage extends StatelessWidget {
               }).toList(),
             ),
             const SizedBox(height: 20),
-
             _TimedControlCard(
               title: "UV-C Treatment", subtitle: "Seed surface sterilization",
               icon: Icons.wb_sunny_rounded, color: const Color(0xFFF57F17),
@@ -657,7 +625,6 @@ class DeployPage extends StatelessWidget {
               formatCountdown: formatCountdown, enabled: selectedGroup.needsUV,
             ),
             const SizedBox(height: 14),
-
             _TimedControlCard(
               title: "Magnet Treatment", subtitle: "DC motor magneto-priming cycle",
               icon: Icons.electric_bolt_rounded, color: const Color(0xFF6A1B9A),
@@ -666,7 +633,6 @@ class DeployPage extends StatelessWidget {
               formatCountdown: formatCountdown, enabled: selectedGroup.needsMagnet,
             ),
             const SizedBox(height: 20),
-
             Text("Pre-Deployment Check", style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.grey.shade800)),
             const SizedBox(height: 10),
             _CheckItem(label: "Temperature", value: "${tempC.toStringAsFixed(1)}°C", detail: "Optimal: 27–30°C", ok: tempC >= SolanoRanges.tempMin && tempC <= SolanoRanges.tempMax),
@@ -744,8 +710,7 @@ class _TimedControlCard extends StatelessWidget {
             Expanded(child: active
                 ? Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Text("Time remaining", style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
-                    Text(formatCountdown(secondsLeft),
-                        style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: color, fontFamily: 'monospace')),
+                    Text(formatCountdown(secondsLeft), style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: color, fontFamily: 'monospace')),
                   ])
                 : const SizedBox.shrink()),
             GestureDetector(
@@ -766,7 +731,6 @@ class _TimedControlCard extends StatelessWidget {
 class _CheckItem extends StatelessWidget {
   final String label; final String value; final String detail; final bool ok;
   const _CheckItem({required this.label, required this.value, required this.detail, required this.ok});
-
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -782,6 +746,382 @@ class _CheckItem extends StatelessWidget {
         Text(value, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: ok ? const Color(0xFF2E7D32) : const Color(0xFFD32F2F))),
       ]),
     );
+  }
+}
+
+// ─── Analytics / EDA Page ──────────────────────────────────────────────────────
+class AnalyticsPage extends StatelessWidget {
+  final List<Map<String, dynamic>> history;
+  const AnalyticsPage({super.key, required this.history});
+
+  Map<String, dynamic> get stats {
+    if (history.isEmpty) return {"tempAvg": "—", "tempMin": "—", "tempMax": "—", "humidAvg": "—", "soilAvg": "—", "dataPoints": 0};
+    double tempSum = 0, humidSum = 0, tempMin = 100, tempMax = -100;
+    int soilSum = 0;
+    for (var e in history) {
+      final t = e['tempC'] as double;
+      final h = e['humidity'] as double;
+      final s = e['soilMoisture'] as int;
+      tempSum += t; humidSum += h; soilSum += s;
+      tempMin = math.min(tempMin, t); tempMax = math.max(tempMax, t);
+    }
+    return {
+      "tempAvg": (tempSum / history.length).toStringAsFixed(1),
+      "tempMin": tempMin.toStringAsFixed(1),
+      "tempMax": tempMax.toStringAsFixed(1),
+      "humidAvg": (humidSum / history.length).toStringAsFixed(1),
+      "soilAvg": (soilSum / history.length).toInt().toString(),
+      "dataPoints": history.length,
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = stats;
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F9F5),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text("SOLANOTRACK", style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: const Color(0xFF2E7D32), letterSpacing: 2)),
+            Text("Analytics", style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: Colors.grey.shade800)),
+            const SizedBox(height: 4),
+            Text("Exploratory Data Analysis from sensor readings", style: TextStyle(fontSize: 13, color: Colors.grey.shade500)),
+            const SizedBox(height: 20),
+
+            _AnalyticsCard(title: "Data Summary", icon: Icons.info_outline_rounded, iconColor: const Color(0xFF2E7D32), child: Column(children: [
+              _StatRow("Data Points Collected", "${s['dataPoints']} readings"),
+              _StatRow("Temperature (Avg)", "${s['tempAvg']}°C"),
+              _StatRow("Temperature (Range)", "${s['tempMin']} – ${s['tempMax']}°C"),
+              _StatRow("Humidity (Avg)", "${s['humidAvg']}%"),
+              _StatRow("Soil Moisture (Avg)", "${s['soilAvg']}%"),
+            ])),
+            const SizedBox(height: 14),
+
+            _AnalyticsCard(title: "Temperature Trend", icon: Icons.thermostat_rounded, iconColor: const Color(0xFFE65100), child: SizedBox(
+              height: 120,
+              child: CustomPaint(painter: TrendLinePainter(
+                data: history.map((e) => e['tempC'] as double).toList(),
+                color: const Color(0xFFE65100), min: 20, max: 40,
+                optimalMin: SolanoRanges.tempMin, optimalMax: SolanoRanges.tempMax,
+              )),
+            )),
+            const SizedBox(height: 14),
+
+            _AnalyticsCard(title: "Humidity Trend", icon: Icons.water_drop_rounded, iconColor: const Color(0xFF1565C0), child: SizedBox(
+              height: 120,
+              child: CustomPaint(painter: TrendLinePainter(
+                data: history.map((e) => e['humidity'] as double).toList(),
+                color: const Color(0xFF1565C0), min: 30, max: 100,
+                optimalMin: SolanoRanges.humidMin, optimalMax: SolanoRanges.humidMax,
+              )),
+            )),
+            const SizedBox(height: 14),
+
+            _AnalyticsCard(title: "Soil Moisture Trend", icon: Icons.grass_rounded, iconColor: const Color(0xFF558B2F), child: SizedBox(
+              height: 120,
+              child: CustomPaint(painter: TrendLinePainter(
+                data: history.map((e) => (e['soilMoisture'] as int).toDouble()).toList(),
+                color: const Color(0xFF558B2F), min: 0, max: 100,
+                optimalMin: SolanoRanges.soilMin.toDouble(), optimalMax: SolanoRanges.soilMax.toDouble(),
+              )),
+            )),
+            const SizedBox(height: 24),
+          ]),
+        ),
+      ),
+    );
+  }
+}
+
+class _AnalyticsCard extends StatelessWidget {
+  final String title; final IconData icon; final Color iconColor; final Widget child;
+  const _AnalyticsCard({required this.title, required this.icon, required this.iconColor, required this.child});
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.grey.shade100)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Icon(icon, color: iconColor, size: 18),
+          const SizedBox(width: 8),
+          Text(title, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.grey.shade800)),
+        ]),
+        const SizedBox(height: 12),
+        child,
+      ]),
+    );
+  }
+}
+
+class _StatRow extends StatelessWidget {
+  final String label; final String value;
+  const _StatRow(this.label, this.value);
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+        Text(label, style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
+        Text(value, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.grey.shade800)),
+      ]),
+    );
+  }
+}
+
+class TrendLinePainter extends CustomPainter {
+  final List<double> data; final Color color;
+  final double min; final double max;
+  final double optimalMin; final double optimalMax;
+
+  TrendLinePainter({required this.data, required this.color, required this.min, required this.max, required this.optimalMin, required this.optimalMax});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // Draw optimal zone background
+    final optMinY = size.height - ((optimalMin - min) / (max - min) * size.height).clamp(0.0, size.height);
+    final optMaxY = size.height - ((optimalMax - min) / (max - min) * size.height).clamp(0.0, size.height);
+    canvas.drawRect(
+      Rect.fromLTRB(0, optMaxY, size.width, optMinY),
+      Paint()..color = color.withOpacity(0.07),
+    );
+
+    if (data.isEmpty || data.length < 2) {
+      canvas.drawLine(Offset(0, size.height / 2), Offset(size.width, size.height / 2),
+          Paint()..color = Colors.grey.shade200..strokeWidth = 1..style = PaintingStyle.stroke);
+      return;
+    }
+
+    final path = Path();
+    final stepX = size.width / (data.length - 1);
+    for (int i = 0; i < data.length; i++) {
+      final normalized = ((data[i] - min) / (max - min)).clamp(0.0, 1.0);
+      final y = size.height - normalized * size.height;
+      final x = i * stepX;
+      if (i == 0) path.moveTo(x, y); else path.lineTo(x, y);
+    }
+    canvas.drawPath(path, Paint()..color = color..strokeWidth = 2.5..style = PaintingStyle.stroke..strokeCap = StrokeCap.round..strokeJoin = StrokeJoin.round);
+  }
+
+  @override
+  bool shouldRepaint(TrendLinePainter old) => old.data.length != data.length;
+}
+
+// ─── Growth Prediction Page ────────────────────────────────────────────────────
+class GrowthPredictionPage extends StatefulWidget {
+  final int soilMoisture; final double humidity; final double tempC; final TreatmentGroup selectedGroup;
+  const GrowthPredictionPage({super.key, required this.soilMoisture, required this.humidity, required this.tempC, required this.selectedGroup});
+  @override
+  State<GrowthPredictionPage> createState() => _GrowthPredictionPageState();
+}
+
+class _GrowthPredictionPageState extends State<GrowthPredictionPage> {
+  final _uvController = TextEditingController();
+  final _tempController = TextEditingController();
+  final _humidController = TextEditingController();
+  final _soilController = TextEditingController();
+
+  String _result = '';
+  bool _hasPredicted = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _tempController.text = widget.tempC > 0 ? widget.tempC.toStringAsFixed(1) : '';
+    _humidController.text = widget.humidity > 0 ? widget.humidity.toStringAsFixed(1) : '';
+    _soilController.text = widget.soilMoisture > 0 ? widget.soilMoisture.toString() : '';
+  }
+
+  @override
+  void dispose() {
+    _uvController.dispose(); _tempController.dispose();
+    _humidController.dispose(); _soilController.dispose();
+    super.dispose();
+  }
+
+  void _predict() {
+    final uvHours = double.tryParse(_uvController.text) ?? 0;
+    final temp = double.tryParse(_tempController.text) ?? 0;
+    final humid = double.tryParse(_humidController.text) ?? 0;
+    final soil = int.tryParse(_soilController.text) ?? 0;
+
+    double baseGrowth = 15.4;
+
+    double tempFactor = temp >= 27 && temp <= 30 ? 1.0 : math.max(0.5, 1.0 - ((temp - 28.5).abs() / 10.0));
+    double humidFactor = humid >= 65 && humid <= 80 ? 1.0 : math.max(0.5, 1.0 - ((humid - 72.5).abs() / 30.0));
+    double soilFactor = soil >= 30 && soil <= 80 ? 1.0 : math.max(0.4, 1.0 - ((soil - 55.0).abs() / 40.0));
+    double uvFactor = uvHours <= 0 ? 1.0 : uvHours <= 24 ? 1.0 + (uvHours / 24.0) * 0.43 : 1.43;
+
+    double treatmentBonus = switch (widget.selectedGroup) {
+      TreatmentGroup.control => 1.0,
+      TreatmentGroup.magnetOnly => 1.30,
+      TreatmentGroup.uvOnly => 1.43,
+      TreatmentGroup.combined => 1.86,
+    };
+
+    double predictedHeight = baseGrowth * tempFactor * humidFactor * soilFactor * uvFactor * (treatmentBonus * 0.3 + 0.7);
+
+    setState(() {
+      _result = "${predictedHeight.toStringAsFixed(2)} mm";
+      _hasPredicted = true;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F9F5),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text("SOLANOTRACK", style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: const Color(0xFF2E7D32), letterSpacing: 2)),
+            Text("Growth Prediction", style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: Colors.grey.shade800)),
+            const SizedBox(height: 4),
+            Text("Enter sensor values to predict seedling growth height", style: TextStyle(fontSize: 13, color: Colors.grey.shade500)),
+            const SizedBox(height: 24),
+
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white, borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.grey.shade200),
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4))],
+              ),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text("Growth Prediction", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.grey.shade800)),
+                const SizedBox(height: 20),
+
+                _InputField(label: "# of hours UV exposed", controller: _uvController, hint: "e.g. 8",
+                    icon: Icons.wb_sunny_rounded, color: const Color(0xFFF57F17), unit: "hrs",
+                    keyboardType: TextInputType.number),
+                const SizedBox(height: 14),
+
+                _InputField(label: "Temperature", controller: _tempController, hint: "e.g. 28.5",
+                    icon: Icons.thermostat_rounded, color: const Color(0xFFE65100), unit: "°C",
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true)),
+                const SizedBox(height: 14),
+
+                _InputField(label: "Humidity", controller: _humidController, hint: "e.g. 72",
+                    icon: Icons.water_drop_rounded, color: const Color(0xFF1565C0), unit: "%",
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true)),
+                const SizedBox(height: 14),
+
+                _InputField(label: "Soil Moisture", controller: _soilController, hint: "e.g. 55",
+                    icon: Icons.grass_rounded, color: const Color(0xFF558B2F), unit: "%",
+                    keyboardType: TextInputType.number),
+                const SizedBox(height: 14),
+
+                // Result field
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Row(children: [
+                    Icon(Icons.eco_rounded, color: const Color(0xFF2E7D32), size: 16),
+                    const SizedBox(width: 6),
+                    Text("Seedling Growth Height", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey.shade700)),
+                  ]),
+                  const SizedBox(height: 8),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                    decoration: BoxDecoration(
+                      color: _hasPredicted ? const Color(0xFF2E7D32).withOpacity(0.07) : Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: _hasPredicted ? const Color(0xFF2E7D32).withOpacity(0.4) : Colors.grey.shade300, width: _hasPredicted ? 1.5 : 1),
+                    ),
+                    child: Text(
+                      _hasPredicted ? _result : "— will appear after prediction",
+                      style: TextStyle(
+                        fontSize: _hasPredicted ? 20 : 13,
+                        fontWeight: _hasPredicted ? FontWeight.w800 : FontWeight.w400,
+                        color: _hasPredicted ? const Color(0xFF2E7D32) : Colors.grey.shade400,
+                      ),
+                    ),
+                  ),
+                ]),
+                const SizedBox(height: 24),
+
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _predict,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2E7D32), foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      elevation: 0,
+                    ),
+                    child: const Text("Predict", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                  ),
+                ),
+              ]),
+            ),
+
+            if (_hasPredicted) ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2E7D32).withOpacity(0.06), borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFF2E7D32).withOpacity(0.2)),
+                ),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Row(children: [
+                    Icon(Icons.model_training_rounded, color: const Color(0xFF2E7D32), size: 18),
+                    const SizedBox(width: 8),
+                    Text("Model Info", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: const Color(0xFF2E7D32))),
+                  ]),
+                  const SizedBox(height: 10),
+                  Text("• Treatment Group: ${widget.selectedGroup.label}", style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                  const SizedBox(height: 4),
+                  Text("• Based on thesis eggplant germination experiment (Day 10)", style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                  const SizedBox(height: 4),
+                  Text("• Factors: UV exposure, temperature, humidity, soil moisture", style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                ]),
+              ),
+            ],
+            const SizedBox(height: 24),
+          ]),
+        ),
+      ),
+    );
+  }
+}
+
+class _InputField extends StatelessWidget {
+  final String label; final TextEditingController controller;
+  final String hint; final IconData icon; final Color color;
+  final String unit; final TextInputType keyboardType;
+
+  const _InputField({required this.label, required this.controller, required this.hint,
+    required this.icon, required this.color, required this.unit, required this.keyboardType});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [
+        Icon(icon, color: color, size: 16),
+        const SizedBox(width: 6),
+        Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey.shade700)),
+      ]),
+      const SizedBox(height: 8),
+      TextField(
+        controller: controller,
+        keyboardType: keyboardType,
+        decoration: InputDecoration(
+          hintText: hint,
+          hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+          suffixText: unit,
+          suffixStyle: TextStyle(color: Colors.grey.shade500, fontWeight: FontWeight.w600),
+          filled: true, fillColor: Colors.grey.shade50,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
+          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
+          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: color, width: 1.5)),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        ),
+      ),
+    ]);
   }
 }
 
@@ -820,7 +1160,6 @@ class HistoryPage extends StatelessWidget {
                         final tC = e['tempC'] as double;
                         final hC = e['humidity'] as double;
                         final sC = e['soilMoisture'] as int;
-                        final wC = e['waterLevel'] as double;
                         return Container(
                           padding: const EdgeInsets.all(14),
                           decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: Colors.grey.shade100)),
@@ -841,7 +1180,6 @@ class HistoryPage extends StatelessWidget {
                               _HistoryChip(label: "🌡 ${tC.toStringAsFixed(1)}°C", ok: tC >= SolanoRanges.tempMin && tC <= SolanoRanges.tempMax),
                               _HistoryChip(label: "💧 ${hC.toStringAsFixed(1)}%", ok: hC >= SolanoRanges.humidMin && hC <= SolanoRanges.humidMax),
                               _HistoryChip(label: "🌱 $sC%", ok: sC >= SolanoRanges.soilMin && sC <= SolanoRanges.soilMax),
-                              _HistoryChip(label: "🪣 ${wC.toStringAsFixed(0)}%", ok: wC >= SolanoRanges.waterLow),
                             ]),
                           ]),
                         );
@@ -908,7 +1246,7 @@ class _SettingsPageState extends State<SettingsPage> {
             ]),
             const SizedBox(height: 16),
             _SettingsSection(title: "About", children: [
-              _SettingsTile(icon: Icons.info_outline_rounded, label: "Version", trailing: Text("1.0.0", style: TextStyle(color: Colors.grey.shade500, fontSize: 13))),
+              _SettingsTile(icon: Icons.info_outline_rounded, label: "Version", trailing: Text("2.0.0", style: TextStyle(color: Colors.grey.shade500, fontSize: 13))),
               _SettingsTile(icon: Icons.science_rounded, label: "Project", trailing: Text("SolanoTrack", style: TextStyle(color: Colors.grey.shade500, fontSize: 13))),
               _SettingsTile(icon: Icons.school_rounded, label: "Institution", trailing: Text("UMTC", style: TextStyle(color: Colors.grey.shade500, fontSize: 13))),
             ]),
@@ -947,7 +1285,7 @@ class _SettingsTile extends StatelessWidget {
         const SizedBox(width: 14),
         Expanded(child: Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Colors.grey.shade700))),
         trailing,
-      ]),
+      ]),s
     );
   }
 }
