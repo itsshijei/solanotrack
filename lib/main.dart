@@ -29,6 +29,15 @@ class MyApp extends StatelessWidget {
   }
 }
 
+// ─── Growth Data Model ────────────────────────────────────────────────────────
+class GrowthRecord {
+  final DateTime date;
+  final double height; // in mm
+  final String group;
+
+  GrowthRecord({required this.date, required this.height, required this.group});
+}
+
 // ─── Thesis-based optimal ranges ───────────────────────────────────────────────
 class SolanoRanges {
   static const double tempMin = 27.0;
@@ -121,6 +130,19 @@ class _MainShellState extends State<MainShell> {
   Timer? _magnetTimer;
 
   final List<Map<String, dynamic>> _history = [];
+
+  final List<GrowthRecord> _growthData = [
+    GrowthRecord(date: DateTime.now().subtract(const Duration(days: 9)), height: 0, group: 'combined'),
+    GrowthRecord(date: DateTime.now().subtract(const Duration(days: 8)), height: 2.5, group: 'combined'),
+    GrowthRecord(date: DateTime.now().subtract(const Duration(days: 7)), height: 5.2, group: 'combined'),
+    GrowthRecord(date: DateTime.now().subtract(const Duration(days: 6)), height: 8.1, group: 'combined'),
+    GrowthRecord(date: DateTime.now().subtract(const Duration(days: 5)), height: 11.3, group: 'combined'),
+    GrowthRecord(date: DateTime.now().subtract(const Duration(days: 4)), height: 14.8, group: 'combined'),
+    GrowthRecord(date: DateTime.now().subtract(const Duration(days: 3)), height: 18.6, group: 'combined'),
+    GrowthRecord(date: DateTime.now().subtract(const Duration(days: 2)), height: 22.7, group: 'combined'),
+    GrowthRecord(date: DateTime.now().subtract(const Duration(days: 1)), height: 26.2, group: 'combined'),
+    GrowthRecord(date: DateTime.now(), height: 28.6, group: 'combined'),
+  ];
 
   late DatabaseReference _dbRef;
   late DatabaseReference _controlRef;
@@ -221,6 +243,7 @@ class _MainShellState extends State<MainShell> {
         tempC: tempC, tempF: tempF, waterLevel: waterLevel,
         uvActive: uvActive, magnetActive: magnetActive,
         selectedGroup: selectedGroup,
+        growthData: _growthData,
       ),
       DeployPage(
         uvActive: uvActive, magnetActive: magnetActive,
@@ -249,26 +272,25 @@ class _MainShellState extends State<MainShell> {
 
     return Scaffold(
       body: pages[_currentIndex],
+      // ─── CHANGE 1: Equal nav bar margins using spaceEvenly Row ───
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: Colors.white,
           boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 20, offset: const Offset(0, -4))],
         ),
         child: SafeArea(
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-              child: Row(
-                children: [
-                  _NavItem(icon: Icons.dashboard_rounded, label: "Home", index: 0, current: _currentIndex, onTap: (i) => setState(() => _currentIndex = i)),
-                  _NavItem(icon: Icons.rocket_launch_rounded, label: "Deploy", index: 1, current: _currentIndex, onTap: (i) => setState(() => _currentIndex = i)),
-                  _NavItem(icon: Icons.bar_chart_rounded, label: "Analytics", index: 2, current: _currentIndex, onTap: (i) => setState(() => _currentIndex = i)),
-                  _NavItem(icon: Icons.trending_up_rounded, label: "Predict", index: 3, current: _currentIndex, onTap: (i) => setState(() => _currentIndex = i)),
-                  _NavItem(icon: Icons.history_rounded, label: "History", index: 4, current: _currentIndex, onTap: (i) => setState(() => _currentIndex = i)),
-                  _NavItem(icon: Icons.settings_rounded, label: "Settings", index: 5, current: _currentIndex, onTap: (i) => setState(() => _currentIndex = i)),
-                ],
-              ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _NavItem(icon: Icons.dashboard_rounded, label: "Home", index: 0, current: _currentIndex, onTap: (i) => setState(() => _currentIndex = i)),
+                _NavItem(icon: Icons.rocket_launch_rounded, label: "Deploy", index: 1, current: _currentIndex, onTap: (i) => setState(() => _currentIndex = i)),
+                _NavItem(icon: Icons.bar_chart_rounded, label: "Analytics", index: 2, current: _currentIndex, onTap: (i) => setState(() => _currentIndex = i)),
+                _NavItem(icon: Icons.trending_up_rounded, label: "Predict", index: 3, current: _currentIndex, onTap: (i) => setState(() => _currentIndex = i)),
+                _NavItem(icon: Icons.history_rounded, label: "History", index: 4, current: _currentIndex, onTap: (i) => setState(() => _currentIndex = i)),
+                _NavItem(icon: Icons.settings_rounded, label: "Settings", index: 5, current: _currentIndex, onTap: (i) => setState(() => _currentIndex = i)),
+              ],
             ),
           ),
         ),
@@ -307,10 +329,11 @@ class _NavItem extends StatelessWidget {
 class DashboardPage extends StatelessWidget {
   final int soilMoisture; final double humidity; final double tempC; final double tempF;
   final double waterLevel; final bool uvActive; final bool magnetActive; final TreatmentGroup selectedGroup;
+  final List<GrowthRecord> growthData;
 
   const DashboardPage({super.key, required this.soilMoisture, required this.humidity,
     required this.tempC, required this.tempF, required this.waterLevel,
-    required this.uvActive, required this.magnetActive, required this.selectedGroup});
+    required this.uvActive, required this.magnetActive, required this.selectedGroup, required this.growthData});
 
   @override
   Widget build(BuildContext context) {
@@ -318,11 +341,14 @@ class DashboardPage extends StatelessWidget {
       backgroundColor: const Color(0xFFF5F9F5),
       body: SafeArea(
         child: CustomScrollView(slivers: [
+
+          // ─── Header ───────────────────────────────────────────────────────
           SliverToBoxAdapter(child: Padding(
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
             child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text("SOLANOTRACK", style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: const Color(0xFF2E7D32), letterSpacing: 2)),
+                // ─── CHANGE 2: removed "Dashboard + Combined chip" row ───
                 Text("Magneto-UV System", style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Colors.grey.shade800)),
               ]),
               Row(children: [
@@ -334,17 +360,14 @@ class DashboardPage extends StatelessWidget {
               ]),
             ]),
           )),
+
+          // ─── CHANGE 3: Daily Growth Progress moved to top ─────────────────
           SliverToBoxAdapter(child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-            child: Row(children: [
-              Text("Dashboard  ", style: TextStyle(fontSize: 14, color: Colors.grey.shade500)),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                decoration: BoxDecoration(color: selectedGroup.color.withOpacity(0.12), borderRadius: BorderRadius.circular(20)),
-                child: Text(selectedGroup.label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: selectedGroup.color)),
-              ),
-            ]),
+            padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+            child: _GrowthCard(growthData: growthData, selectedGroup: selectedGroup),
           )),
+
+          // ─── Gauge Grid ───────────────────────────────────────────────────
           SliverPadding(
             padding: const EdgeInsets.all(20),
             sliver: SliverGrid(
@@ -357,14 +380,19 @@ class DashboardPage extends StatelessWidget {
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, crossAxisSpacing: 14, mainAxisSpacing: 14, childAspectRatio: 0.92),
             ),
           ),
+
+          // ─── System Status ────────────────────────────────────────────────
           SliverToBoxAdapter(child: Padding(
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
             child: _SystemStatusCard(tempC: tempC, humidity: humidity, soilMoisture: soilMoisture, waterLevel: waterLevel),
           )),
+
+          // ─── Expected Results ─────────────────────────────────────────────
           SliverToBoxAdapter(child: Padding(
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
             child: _ExpectedResultsCard(group: selectedGroup),
           )),
+
         ]),
       ),
     );
@@ -470,6 +498,96 @@ class _ResultRow extends StatelessWidget {
       ]),
     );
   }
+}
+
+// ─── Growth Card ───────────────────────────────────────────────────────────────
+class _GrowthCard extends StatelessWidget {
+  final List<GrowthRecord> growthData;
+  final TreatmentGroup selectedGroup;
+
+  const _GrowthCard({required this.growthData, required this.selectedGroup});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.of(context).push(MaterialPageRoute(
+          builder: (context) => GrowthDetailPage(growthData: growthData, selectedGroup: selectedGroup),
+        ));
+      },
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: selectedGroup.color.withOpacity(0.2)),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2))],
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Icon(Icons.trending_up_rounded, color: selectedGroup.color, size: 18),
+            const SizedBox(width: 8),
+            Text("Daily Growth Progress", style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.grey.shade800)),
+            const Spacer(),
+            Icon(Icons.arrow_forward_rounded, color: Colors.grey.shade400, size: 18),
+          ]),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 100,
+            width: double.infinity,
+            child: CustomPaint(
+              painter: GrowthChartPainter(growthData: growthData, color: selectedGroup.color),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text("Tap to see detailed growth chart", style: TextStyle(fontSize: 11, color: Colors.grey.shade400, fontStyle: FontStyle.italic)),
+        ]),
+      ),
+    );
+  }
+}
+
+class GrowthChartPainter extends CustomPainter {
+  final List<GrowthRecord> growthData;
+  final Color color;
+
+  GrowthChartPainter({required this.growthData, required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (growthData.isEmpty || growthData.length < 2) {
+      canvas.drawLine(Offset(0, size.height / 2), Offset(size.width, size.height / 2),
+          Paint()..color = Colors.grey.shade200..strokeWidth = 1);
+      return;
+    }
+
+    final maxHeight = growthData.fold<double>(0, (max, record) => math.max(max, record.height));
+    final minHeight = 0.0;
+    final range = maxHeight - minHeight;
+
+    final path = Path();
+    final stepX = size.width / (growthData.length - 1);
+
+    for (int i = 0; i < growthData.length; i++) {
+      final normalized = range > 0 ? (growthData[i].height - minHeight) / range : 0;
+      final y = size.height - (normalized * size.height);
+      final x = i * stepX;
+
+      if (i == 0) path.moveTo(x, y); else path.lineTo(x, y);
+    }
+
+    canvas.drawPath(path, Paint()..color = color..strokeWidth = 2.5..style = PaintingStyle.stroke..strokeCap = StrokeCap.round..strokeJoin = StrokeJoin.round);
+
+    for (int i = 0; i < growthData.length; i++) {
+      final normalized = range > 0 ? (growthData[i].height - minHeight) / range : 0;
+      final y = size.height - (normalized * size.height);
+      final x = i * stepX;
+      canvas.drawCircle(Offset(x, y), 3, Paint()..color = color);
+    }
+  }
+
+  @override
+  bool shouldRepaint(GrowthChartPainter old) => old.growthData.length != growthData.length;
 }
 
 // ─── Gauge Card ────────────────────────────────────────────────────────────────
@@ -626,7 +744,7 @@ class DeployPage extends StatelessWidget {
             ),
             const SizedBox(height: 14),
             _TimedControlCard(
-              title: "Magnet Treatment", subtitle: "DC motor magneto-priming cycle",
+              title: "Magnet Treatment", subtitle: "Static magnetic field exposure",
               icon: Icons.electric_bolt_rounded, color: const Color(0xFF6A1B9A),
               active: magnetActive, secondsLeft: magnetSecondsLeft, durationMinutes: magnetDurationMinutes,
               onStart: onStartMagnet, onStop: onStopMagnet, onDurationChanged: onMagnetDurationChanged,
@@ -880,7 +998,6 @@ class TrendLinePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Draw optimal zone background
     final optMinY = size.height - ((optimalMin - min) / (max - min) * size.height).clamp(0.0, size.height);
     final optMaxY = size.height - ((optimalMax - min) / (max - min) * size.height).clamp(0.0, size.height);
     canvas.drawRect(
@@ -1014,7 +1131,6 @@ class _GrowthPredictionPageState extends State<GrowthPredictionPage> {
                     keyboardType: TextInputType.number),
                 const SizedBox(height: 14),
 
-                // Result field
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Row(children: [
                     Icon(Icons.eco_rounded, color: const Color(0xFF2E7D32), size: 16),
@@ -1285,7 +1401,138 @@ class _SettingsTile extends StatelessWidget {
         const SizedBox(width: 14),
         Expanded(child: Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Colors.grey.shade700))),
         trailing,
-      ]),s
+      ]),
     );
   }
+}
+
+// ─── Growth Detail Page ────────────────────────────────────────────────────────
+class GrowthDetailPage extends StatelessWidget {
+  final List<GrowthRecord> growthData;
+  final TreatmentGroup selectedGroup;
+
+  const GrowthDetailPage({super.key, required this.growthData, required this.selectedGroup});
+
+  double get currentHeight => growthData.isNotEmpty ? growthData.last.height : 0;
+  double get averageHeight => growthData.isEmpty ? 0 : growthData.fold(0.0, (sum, r) => sum + r.height) / growthData.length;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F9F5),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(icon: Icon(Icons.arrow_back_rounded, color: Colors.grey.shade800), onPressed: () => Navigator.pop(context)),
+        title: Text("Growth Progress", style: TextStyle(color: Colors.grey.shade800, fontWeight: FontWeight.w700)),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(color: selectedGroup.color.withOpacity(0.08), borderRadius: BorderRadius.circular(16), border: Border.all(color: selectedGroup.color.withOpacity(0.2))),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text("Current Height", style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+              const SizedBox(height: 4),
+              Text("${currentHeight.toStringAsFixed(1)} mm", style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: selectedGroup.color)),
+              const SizedBox(height: 12),
+              Row(children: [
+                Expanded(child: _StatTile("Average", "${averageHeight.toStringAsFixed(1)} mm")),
+                const SizedBox(width: 12),
+                Expanded(child: _StatTile("Days Tracked", "${growthData.length}")),
+              ]),
+            ]),
+          ),
+          const SizedBox(height: 20),
+          Text("Growth Chart", style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.grey.shade800)),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.grey.shade100)),
+            child: SizedBox(
+              height: 250,
+              child: CustomPaint(painter: DetailedGrowthChartPainter(growthData: growthData, color: selectedGroup.color)),
+            ),
+          ),
+          const SizedBox(height: 20),
+          Text("Daily Records", style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.grey.shade800)),
+          const SizedBox(height: 12),
+          ...growthData.asMap().entries.map((entry) {
+            final i = entry.key;
+            final record = entry.value;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade100)),
+                child: Row(children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(color: selectedGroup.color.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                    child: Text("Day ${i + 1}", style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: selectedGroup.color)),
+                  ),
+                  const Spacer(),
+                  Text("${record.height.toStringAsFixed(1)} mm", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.grey.shade800)),
+                ]),
+              ),
+            );
+          }).toList(),
+          const SizedBox(height: 24),
+        ]),
+      ),
+    );
+  }
+}
+
+class _StatTile extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _StatTile(this.label, this.value);
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(label, style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+      const SizedBox(height: 4),
+      Text(value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.grey.shade800)),
+    ]);
+  }
+}
+
+class DetailedGrowthChartPainter extends CustomPainter {
+  final List<GrowthRecord> growthData;
+  final Color color;
+
+  DetailedGrowthChartPainter({required this.growthData, required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (growthData.isEmpty || growthData.length < 2) return;
+
+    final maxHeight = growthData.fold<double>(0, (max, record) => math.max(max, record.height));
+    final range = maxHeight > 0 ? maxHeight : 30;
+    final path = Path();
+    final stepX = size.width / (growthData.length - 1);
+
+    for (int i = 0; i < growthData.length; i++) {
+      final normalized = (growthData[i].height / range).clamp(0.0, 1.0);
+      final y = size.height - (normalized * size.height);
+      final x = i * stepX;
+      if (i == 0) path.moveTo(x, y); else path.lineTo(x, y);
+    }
+
+    canvas.drawPath(path, Paint()..color = color..strokeWidth = 3..style = PaintingStyle.stroke..strokeCap = StrokeCap.round..strokeJoin = StrokeJoin.round);
+
+    for (int i = 0; i < growthData.length; i++) {
+      final normalized = (growthData[i].height / range).clamp(0.0, 1.0);
+      final y = size.height - (normalized * size.height);
+      final x = i * stepX;
+      canvas.drawCircle(Offset(x, y), 4, Paint()..color = color);
+    }
+  }
+
+  @override
+  bool shouldRepaint(DetailedGrowthChartPainter old) => old.growthData.length != growthData.length;
 }
